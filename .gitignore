@@ -5,3 +5,9 @@
 # Temporary files #
 ###################
 *.swp
+
+# Eclipse project files #
+#########################
+
+.project
+.pydevproject

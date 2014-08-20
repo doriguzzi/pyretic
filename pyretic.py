@@ -76,6 +76,9 @@ def parseArgs():
     op = OptionParser( description=desc, usage=usage )
     op.add_option( '--frontend-only', '-f', action="store_true", 
                      dest="frontend_only", help = 'only start the frontend'  )
+    op.add_option( '--client', '-c', type='choice', 
+                     choices=['pox','ryu'], 
+                     help = '|'.join( ['pox','ryu'] )  )
     op.add_option( '--mode', '-m', type='choice',
                      choices=['interpreted','i','reactive0','r0','proactive0','p0','proactive1','p1'], 
                      help = '|'.join( ['interpreted/i','reactive0/r0','proactiveN/pN for N={0,1}'] )  )
@@ -84,7 +87,7 @@ def parseArgs():
                    default = 'low',
                    help = '|'.join( ['low','normal','high','please-make-it-stop'] )  )
 
-    op.set_defaults(frontend_only=False,mode='reactive0')
+    op.set_defaults(frontend_only=False,mode='reactive0',client='pox')
     options, args = op.parse_args()
 
     return (op, options, args, kwargs_to_pass)
@@ -162,28 +165,37 @@ def main():
     
     runtime = Runtime(Backend(),main,kwargs,options.mode,options.verbosity)
     if not options.frontend_only:
-        try:
-            output = subprocess.check_output('echo $PYTHONPATH',shell=True).strip()
-        except:
-            print 'Error: Unable to obtain PYTHONPATH'
-            sys.exit(1)
-        poxpath = None
-        for p in output.split(':'):
-             if re.match('.*pox/?$',p):
-                 poxpath = os.path.abspath(p)
-                 break
-        if poxpath is None:
-            print 'Error: pox not found in PYTHONPATH'
-            sys.exit(1)
-        pox_exec = os.path.join(poxpath,'pox.py')
+        if options.client == "pox":
+            try:
+                output = subprocess.check_output('echo $PYTHONPATH',shell=True).strip()
+            except:
+                print 'Error: Unable to obtain PYTHONPATH'
+                sys.exit(1)
+            poxpath = None
+            for p in output.split(':'):
+                 if re.match('.*pox/?$',p):
+                     poxpath = os.path.abspath(p)
+                     break
+            if poxpath is None:
+                print 'Error: pox not found in PYTHONPATH'
+                sys.exit(1)
+            client_exec = os.path.join(poxpath,'pox.py')
+        elif options.client == "ryu":   
+            try:
+                output = subprocess.check_output('which ryu-manager',shell=True).strip()
+                print output
+            except:
+                print 'Error: Unable to find ryu-manager'
+                sys.exit(1)
+            client_exec = output
+        
         python=sys.executable
-        # TODO(josh): pipe pox_client stdout to subprocess.PIPE or
-        # other log file descriptor if necessary
+        of_client_string = "of_client." + options.client + "_client"    
         of_client = subprocess.Popen([python, 
-                                      pox_exec,
-                                      'of_client.pox_client' ],
-                                     stdout=sys.stdout,
-                                     stderr=subprocess.STDOUT)
+                                      client_exec,
+                                      of_client_string],
+                                      stdout=sys.stdout,
+                                      stderr=subprocess.STDOUT)
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.pause()

@@ -400,7 +400,6 @@ class POXClient(revent.EventMixin):
 
     def _handle_ConnectionUp(self, event):
         assert event.dpid not in self.switches
-        
         self.switches[event.dpid] = {}
         self.switches[event.dpid]['connection'] = event.connection
         self.switches[event.dpid]['ports'] = {}
